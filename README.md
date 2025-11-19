@@ -89,20 +89,20 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    USER (Browser)                        │
+│                    USER (Browser)                       │
 └────────────────────┬────────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Frontend (React + Vite)                     │
-│  • React 18.2 • Tailwind CSS • Axios • Lucide Icons    │
-│  • Pages: Home, Parser, Shortener, Schedule, etc.      │
+│              Frontend (React + Vite)                    │
+│  • React 18.2 • Tailwind CSS • Axios • Lucide Icons     │
+│  • Pages: Home, Parser, Shortener, Schedule, etc.       │
 └────────────────────┬────────────────────────────────────┘
                      │ HTTP/REST API
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│              Backend (FastAPI)                           │
-│  Routes:                                                 │
+│              Backend (FastAPI)                          │
+│  Routes:                                                │
 │  • /api/parser    - Парсинг документов                  │
 │  • /api/llm       - Работа с LLM                        │
 │  • /api/analyzer  - Анализ текста                       │
