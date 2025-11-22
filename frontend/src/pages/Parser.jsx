@@ -1,14 +1,18 @@
 import { useState } from 'react'
-import { Upload, FileText, Loader2, Scissors, BarChart3, HelpCircle } from 'lucide-react'
+import { Upload, FileText, Loader2, Scissors, BarChart3, HelpCircle, Save, Check } from 'lucide-react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 
 const Parser = () => {
   const navigate = useNavigate()
+  const { token, isAuthenticated } = useAuth()
   const [file, setFile] = useState(null)
   const [extractedText, setExtractedText] = useState('')
   const [loading, setLoading] = useState(false)
   const [dragActive, setDragActive] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   const handleDrag = (e) => {
     e.preventDefault()
@@ -76,6 +80,41 @@ const Parser = () => {
     // Сохраняем текст в localStorage и переходим на страницу анализа
     localStorage.setItem('textToAnalyze', extractedText)
     navigate('/analyzer')
+  }
+
+  const saveToCloud = async () => {
+    if (!isAuthenticated) {
+      alert('Войдите в систему, чтобы сохранять документы')
+      navigate('/login')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/documents/save`,
+        {
+          title: file?.name || 'Извлечённый текст',
+          content: extractedText,
+          original_filename: file?.name,
+          file_type: 'parsed',
+          metadata: {
+            file_size: file?.size,
+            extracted_at: new Date().toISOString()
+          }
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      console.error('Error saving document:', error)
+      alert('Ошибка при сохранении документа')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -153,31 +192,55 @@ const Parser = () => {
             className="input-field min-h-[400px] font-mono text-sm"
             placeholder="Извлечённый текст появится здесь..."
           />
-          <div className="grid grid-cols-3 gap-3">
-            <button 
-              onClick={handleShortenText}
-              className="btn-primary flex items-center justify-center gap-2"
+          <div className="space-y-3">
+            <button
+              onClick={saveToCloud}
+              disabled={saving || saved}
+              className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70"
             >
-              <Scissors size={20} />
-              <span>Сократить</span>
+              {saved ? (
+                <>
+                  <Check size={20} />
+                  <span>Сохранено в облако!</span>
+                </>
+              ) : saving ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  <span>Сохранение...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={20} />
+                  <span>💾 Сохранить в облако</span>
+                </>
+              )}
             </button>
-            <button 
-              onClick={handleAnalyzeText}
-              className="btn-secondary flex items-center justify-center gap-2"
-            >
-              <BarChart3 size={20} />
-              <span>Анализ</span>
-            </button>
-            <button 
-              onClick={() => {
-                localStorage.setItem('textForQuestions', extractedText)
-                navigate('/questions')
-              }}
-              className="btn-secondary flex items-center justify-center gap-2"
-            >
-              <HelpCircle size={20} />
-              <span>Вопросы</span>
-            </button>
+            <div className="grid grid-cols-3 gap-3">
+              <button 
+                onClick={handleShortenText}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <Scissors size={20} />
+                <span>Сократить</span>
+              </button>
+              <button 
+                onClick={handleAnalyzeText}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <BarChart3 size={20} />
+                <span>Анализ</span>
+              </button>
+              <button 
+                onClick={() => {
+                  localStorage.setItem('textForQuestions', extractedText)
+                  navigate('/questions')
+                }}
+                className="btn-secondary flex items-center justify-center gap-2"
+              >
+                <HelpCircle size={20} />
+                <span>Вопросы</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

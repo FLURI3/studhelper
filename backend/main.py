@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routes import parser, llm, analyzer, documents, training, schedule
+from routes import parser, llm, analyzer, documents, training, schedule, auth
 import logging
 import asyncio
 from contextlib import asynccontextmanager
@@ -33,13 +33,15 @@ app = FastAPI(
 # CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"]
 )
 
 # Routes
+app.include_router(auth.router, prefix="/api", tags=["auth"])
 app.include_router(parser.router, prefix="/api/parser", tags=["parser"])
 app.include_router(llm.router, prefix="/api/llm", tags=["llm"])
 app.include_router(analyzer.router, prefix="/api/analyzer", tags=["analyzer"])

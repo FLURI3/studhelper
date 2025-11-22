@@ -1,11 +1,17 @@
 import { useState, useEffect } from 'react'
-import { BarChart3, Loader2 } from 'lucide-react'
+import { BarChart3, Loader2, Save, Check } from 'lucide-react'
 import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 const Analyzer = () => {
+  const navigate = useNavigate()
+  const { token, isAuthenticated } = useAuth()
   const [text, setText] = useState('')
   const [analysis, setAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   // Загружаем текст из localStorage при монтировании
   useEffect(() => {
@@ -34,6 +40,48 @@ const Analyzer = () => {
       alert('Ошибка при анализе текста')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const saveToCloud = async () => {
+    if (!isAuthenticated) {
+      alert('Войдите в систему, чтобы сохранять документы')
+      navigate('/login')
+      return
+    }
+
+    if (!analysis) return
+
+    setSaving(true)
+    try {
+      const analysisReport = `Анализ текста\n\nСтатистика:\n- Слов: ${analysis.word_count}\n- Предложений: ${analysis.sentence_count}\n- Символов: ${analysis.char_count}\n- Время чтения: ${analysis.read_time} мин\n\nКлючевые термины:\n${analysis.key_terms?.join(', ') || 'Нет'}\n\nИсходный текст:\n${text}`
+      
+      await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/documents/save`,
+        {
+          title: `Анализ текста (${analysis.word_count} слов)`,
+          content: analysisReport,
+          file_type: 'analyzed',
+          metadata: {
+            word_count: analysis.word_count,
+            sentence_count: analysis.sentence_count,
+            char_count: analysis.char_count,
+            read_time: analysis.read_time,
+            key_terms: analysis.key_terms,
+            analyzed_at: new Date().toISOString()
+          }
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      console.error('Error saving document:', error)
+      alert('Ошибка при сохранении документа')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -77,6 +125,30 @@ const Analyzer = () => {
       {/* Results */}
       {analysis && (
         <div className="space-y-6">
+          {/* Save Button */}
+          <button
+            onClick={saveToCloud}
+            disabled={saving || saved}
+            className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70"
+          >
+            {saved ? (
+              <>
+                <Check size={20} />
+                <span>Сохранено в облако!</span>
+              </>
+            ) : saving ? (
+              <>
+                <Loader2 size={20} className="animate-spin" />
+                <span>Сохранение...</span>
+              </>
+            ) : (
+              <>
+                <Save size={20} />
+                <span>💾 Сохранить анализ в облако</span>
+              </>
+            )}
+          </button>
+          
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="glass-card p-6 text-center">

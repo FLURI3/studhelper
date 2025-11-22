@@ -21,6 +21,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - backend_data:/app/data
     environment:
       - OLLAMA_URL=http://ollama:11434
       - REDIS_URL=redis://redis:6379
@@ -70,3 +71,4 @@ volumes:
   ollama_data:
   postgres_data:
   redis_data:
+  backend_data:

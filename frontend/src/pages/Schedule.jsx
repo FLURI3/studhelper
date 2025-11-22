@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Calendar, Clock, MapPin, User, RefreshCw, ChevronDown, Search } from 'lucide-react'
+import { Calendar, Clock, MapPin, User, RefreshCw, ChevronDown, Search, Star } from 'lucide-react'
 import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
 
 const Schedule = () => {
+  const { user } = useAuth()
   const [groups, setGroups] = useState([])
   const [selectedGroup, setSelectedGroup] = useState('')
   const [schedule, setSchedule] = useState(null)
@@ -14,6 +16,16 @@ const Schedule = () => {
   useEffect(() => {
     fetchGroups()
   }, [])
+
+  // Автоматически загружаем расписание группы пользователя
+  useEffect(() => {
+    if (user?.group && groups.length > 0) {
+      const userGroup = groups.find(g => g.name === user.group)
+      if (userGroup && !selectedGroup) {
+        fetchSchedule(userGroup.code)
+      }
+    }
+  }, [user, groups])
 
   const fetchGroups = async () => {
     try {
@@ -227,19 +239,30 @@ const Schedule = () => {
                         <span className="text-xs opacity-50">({specialtyGroups.length})</span>
                       </h3>
                       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                        {specialtyGroups.map((group) => (
-                          <button
-                            key={group.code}
-                            onClick={() => fetchSchedule(group.code)}
-                            className={`px-3 py-2.5 rounded-lg border transition-all duration-200 text-sm font-medium ${
-                              selectedGroup === group.code
-                                ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan'
-                                : 'bg-primary-tertiary border-border text-text-secondary hover:border-accent-cyan/50 hover:text-text-primary'
-                            }`}
-                          >
-                            {group.name}
-                          </button>
-                        ))}
+                        {specialtyGroups.map((group) => {
+                          const isUserGroup = user?.group === group.name
+                          return (
+                            <button
+                              key={group.code}
+                              onClick={() => fetchSchedule(group.code)}
+                              className={`px-3 py-2.5 rounded-lg border transition-all duration-200 text-sm font-medium relative ${
+                                selectedGroup === group.code
+                                  ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan'
+                                  : isUserGroup
+                                  ? 'bg-accent-purple/20 border-accent-purple text-accent-purple'
+                                  : 'bg-primary-tertiary border-border text-text-secondary hover:border-accent-cyan/50 hover:text-text-primary'
+                              }`}
+                            >
+                              {isUserGroup && (
+                                <Star size={12} className="absolute top-1 right-1 fill-current" />
+                              )}
+                              {group.name}
+                              {isUserGroup && (
+                                <span className="block text-[10px] opacity-70 mt-0.5">Ваша группа</span>
+                              )}
+                            </button>
+                          )
+                        })}
                       </div>
                     </div>
                   )
@@ -248,19 +271,30 @@ const Schedule = () => {
             ) : (
               // Плоский список для выбранной специальности
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                {filteredGroups.map((group) => (
-                  <button
-                    key={group.code}
-                    onClick={() => fetchSchedule(group.code)}
-                    className={`px-4 py-3 rounded-lg border transition-all duration-200 text-sm font-medium ${
-                      selectedGroup === group.code
-                        ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan'
-                        : 'bg-primary-tertiary border-border text-text-secondary hover:border-accent-cyan/50 hover:text-text-primary'
-                    }`}
-                  >
-                    {group.name}
-                  </button>
-                ))}
+                {filteredGroups.map((group) => {
+                  const isUserGroup = user?.group === group.name
+                  return (
+                    <button
+                      key={group.code}
+                      onClick={() => fetchSchedule(group.code)}
+                      className={`px-4 py-3 rounded-lg border transition-all duration-200 text-sm font-medium relative ${
+                        selectedGroup === group.code
+                          ? 'bg-accent-cyan/20 border-accent-cyan text-accent-cyan'
+                          : isUserGroup
+                          ? 'bg-accent-purple/20 border-accent-purple text-accent-purple'
+                          : 'bg-primary-tertiary border-border text-text-secondary hover:border-accent-cyan/50 hover:text-text-primary'
+                      }`}
+                    >
+                      {isUserGroup && (
+                        <Star size={12} className="absolute top-1 right-1 fill-current" />
+                      )}
+                      {group.name}
+                      {isUserGroup && (
+                        <span className="block text-[10px] opacity-70 mt-0.5">Ваша группа</span>
+                      )}
+                    </button>
+                  )
+                })}
               </div>
             )}
           </>
@@ -364,8 +398,13 @@ const Schedule = () => {
                               {lesson.variants.map((variant, variantIndex) => (
                                 <div key={variantIndex} className={variantIndex > 0 ? 'pt-2 sm:pt-3 border-t border-border' : ''}>
                                   {lesson.variants.length > 1 && (
-                                    <span className="text-xs bg-accent-cyan/20 text-accent-cyan px-2 py-0.5 rounded mb-1.5 inline-block">
+                                    <span className={`text-xs px-2 py-0.5 rounded mb-1.5 inline-block ${
+                                      user?.subgroup === variantIndex + 1
+                                        ? 'bg-accent-purple/20 text-accent-purple'
+                                        : 'bg-accent-cyan/20 text-accent-cyan'
+                                    }`}>
                                       Подгруппа {variantIndex + 1}
+                                      {user?.subgroup === variantIndex + 1 && ' (ваша)'}
                                     </span>
                                   )}
                                   <h4 className="font-medium text-sm sm:text-base text-text-primary mb-1.5">

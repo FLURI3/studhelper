@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
-import { Scissors, Loader2, Copy, Download, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react'
+import { Scissors, Loader2, Copy, Download, CheckCircle, AlertCircle, Info, RefreshCw, Save, Check } from 'lucide-react'
 import axios from 'axios'
+import { useAuth } from '../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 const MAX_TEXT_LENGTH = 100000
 
 const TextShortener = () => {
+  const navigate = useNavigate()
+  const { token, isAuthenticated } = useAuth()
   const [inputText, setInputText] = useState('')
   const [shortenedText, setShortenedText] = useState('')
   const [loading, setLoading] = useState(false)
@@ -17,6 +21,8 @@ const TextShortener = () => {
   const [reasoning, setReasoning] = useState('')
   const [trainingStats, setTrainingStats] = useState(null)
   const [trainedModels, setTrainedModels] = useState([])
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
 
   // Загружаем текст из localStorage и статистику обучения при монтировании
   useEffect(() => {
@@ -114,6 +120,44 @@ const TextShortener = () => {
     a.download = filename
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const saveToCloud = async () => {
+    if (!isAuthenticated) {
+      alert('Войдите в систему, чтобы сохранять документы')
+      navigate('/login')
+      return
+    }
+
+    setSaving(true)
+    try {
+      await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/documents/save`,
+        {
+          title: `Сокращённый текст (${ratio}%)`,
+          content: shortenedText,
+          file_type: 'shortened',
+          metadata: {
+            original_length: stats?.original,
+            summary_length: stats?.summary,
+            compression_ratio: stats?.ratio,
+            model: model,
+            custom_prompt: customPrompt,
+            shortened_at: new Date().toISOString()
+          }
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      console.error('Error saving document:', error)
+      alert('Ошибка при сохранении документа')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -354,21 +398,45 @@ const TextShortener = () => {
             placeholder="Результат появится здесь..."
           />
           {shortenedText && (
-            <div className="flex gap-3">
+            <div className="space-y-3">
               <button
-                onClick={() => copyToClipboard(shortenedText)}
-                className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                onClick={saveToCloud}
+                disabled={saving || saved}
+                className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-70"
               >
-                <Copy size={20} />
-                <span>Копировать</span>
+                {saved ? (
+                  <>
+                    <Check size={20} />
+                    <span>Сохранено в облако!</span>
+                  </>
+                ) : saving ? (
+                  <>
+                    <Loader2 size={20} className="animate-spin" />
+                    <span>Сохранение...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={20} />
+                    <span>💾 Сохранить в облако</span>
+                  </>
+                )}
               </button>
-              <button
-                onClick={() => downloadText(shortenedText, 'shortened.txt')}
-                className="btn-secondary flex-1 flex items-center justify-center gap-2"
-              >
-                <Download size={20} />
-                <span>Скачать</span>
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => copyToClipboard(shortenedText)}
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Copy size={20} />
+                  <span>Копировать</span>
+                </button>
+                <button
+                  onClick={() => downloadText(shortenedText, 'shortened.txt')}
+                  className="btn-secondary flex-1 flex items-center justify-center gap-2"
+                >
+                  <Download size={20} />
+                  <span>Скачать</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
