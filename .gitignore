@@ -18,6 +18,12 @@ build/
 # Environment variables
 .env
 .env.local
+.env.production
+
+# SSL certificates
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
 
 # IDEs
 .vscode/

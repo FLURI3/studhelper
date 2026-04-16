@@ -1,40 +1,49 @@
 services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - frontend_build:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    restart: always
+
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
+      dockerfile: Dockerfile.prod
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - frontend_build:/app/dist
     environment:
-      - VITE_API_URL=http://95.31.234.101:8000
-    depends_on:
-      - backend
+      - VITE_API_URL=https://your-domain.com/api
+    command: npm run build
 
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend:/app
-      - backend_data:/app/data
+      dockerfile: Dockerfile.prod
+    expose:
+      - "8000"
     environment:
       - OLLAMA_URL=http://ollama:11434
       - REDIS_URL=redis://redis:6379
-      - DATABASE_URL=postgresql://user:password@postgres:5432/studentdb
+      - DATABASE_URL=postgresql://user:${DB_PASSWORD}@postgres:5432/studentdb
+      - JWT_SECRET=${JWT_SECRET}
+      - ENVIRONMENT=production
     depends_on:
       - postgres
       - redis
       - ollama
+    restart: always
 
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
+    expose:
+      - "11434"
     volumes:
       - ollama_data:/root/.ollama
     environment:
@@ -48,27 +57,26 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    restart: always
 
   postgres:
     image: postgres:15-alpine
     environment:
       - POSTGRES_USER=user
-      - POSTGRES_PASSWORD=password
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
       - POSTGRES_DB=studentdb
-    ports:
-      - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    restart: always
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
+    restart: always
 
 volumes:
   ollama_data:
   postgres_data:
   redis_data:
-  backend_data:
+  frontend_build:
